@@ -6,11 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Item;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
-
 use Illuminate\Support\Facades\Log;
 use Midtrans\Config;
 use Midtrans\Snap;
 use Midtrans\Notification;
+use App\Services\Midtrans\SafeNotification;
+
 
 class PaymentController extends Controller
 {
@@ -30,10 +31,16 @@ class PaymentController extends Controller
             'user_email'  => 'required|email',
             'amount'      => 'required|numeric|min:1000',
             'item_name'   => 'required|string',
-            'item_id'     => 'nullable|string|numeric',
+            'item_id'     => 'required|numeric',
+            'subscriber_id'   => 'required|exists:subscriber,id',  // validasi subscriber_id
         ]);
 
-        $orderId = uniqid('ORDER-');
+        // $subscriberId = $request->user_id ?? null;
+        $subscriberId = $request->subscriber_id;  // ambil dari subscriber_id, bukan user_id
+        $itemId = $request->item_id;
+
+
+        $orderId = 'ORDER-' . $subscriberId . '-' . $itemId . '-' . uniqid();
 
         $payload = [
             'transaction_details' => [
@@ -46,14 +53,14 @@ class PaymentController extends Controller
             ],
             'item_details' => [
                 [
-                    'id'       => $request->item_id ?? 'custom',
+                    'id'       => $itemId,
                     'price'    => $request->amount,
                     'quantity' => 1,
                     'name'     => $request->item_name,
                 ]
             ],
             'callbacks' => [
-                'finish' => 'https://azziyadahklender.id', // GANTI dengan URL React lo
+                'finish' => 'https://your-react-app-url.com/payment-finish',
             ]
         ];
 
@@ -63,7 +70,7 @@ class PaymentController extends Controller
 
             return response()->json([
                 'snap_token' => $snapToken,
-                $orderId = 'ORDER-' . ($request->user_id ?? '0') . '-' . ($request->item_id ?? 'custom') . '-' . uniqid(),
+                'order_id'   => $orderId,
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -74,45 +81,62 @@ class PaymentController extends Controller
     }
 
 
+
     public function handleNotification(Request $request)
     {
+        Log::info('Incoming Midtrans Notification Payload:', $request->all());
 
-
-        // Inisialisasi ulang config Midtrans
+        // Setup Midtrans config lagi (jaga-jaga kalau belum di-boot)
         Config::$serverKey = config('midtrans.server_key');
         Config::$isProduction = config('midtrans.is_production');
+        Config::$isSanitized = true;
+        Config::$is3ds = true;
 
         try {
-            $notif = new Notification();
-
-            $transactionStatus = $notif->transaction_status;
-            $paymentType = $notif->payment_type;
-            $orderId = $notif->order_id;
-            $grossAmount = $notif->gross_amount;
-            $transactionTime = $notif->transaction_time;
+            $notif = new SafeNotification();
+            $orderId = $notif->order_id ?? null;
+            $transactionId = $notif->transaction_id ?? null;
+            $transactionStatus = $notif->transaction_status ?? null;
+            $paymentType = $notif->payment_type ?? null;
+            $grossAmount = $notif->gross_amount ?? 0;
+            $transactionTime = $notif->transaction_time ?? now();
             $paymentTime = $notif->settlement_time ?? null;
-            $statusCode = $notif->status_code;
+            $statusCode = $notif->status_code ?? null;
             $fullResponse = json_encode($notif);
-            $orderParts = explode('-', $notif->order_id);
-            $santriId = $orderParts[1] ?? null;
+
+            // Extract subscriber_id dan item_id dari order_id jika pakai format custom (contoh: INV-123-456)
+            $orderParts = explode('-', $orderId);
+            $subscriberId = $orderParts[1] ?? null;
             $itemId = $orderParts[2] ?? null;
 
-            // Simpan ke database
-            Transaction::create([
-                'santri_id' => $santriId,
-                'item_id'   => $itemId,
-                // 'santri_id'           => null,
-                // 'item_id'             => null,
-                'transaction_id'      => $notif->transaction_id,
-                'midtrans_order_id'   => $orderId,
-                'jumlah'              => 1,
-                'total_harga'         => $grossAmount,
-                'status'              => $transactionStatus,
-                'payment_type'        => $paymentType,
-                'midtrans_response'   => $fullResponse,
-                'transaction_time'    => $transactionTime,
-                'payment_time'        => $paymentTime,
-            ]);
+            // Cek apakah transaksi ini sudah ada (hindari duplikasi)
+            $existing = Transaction::where('midtrans_order_id', $orderId)->first();
+
+            if (!$existing) {
+                Transaction::create([
+                    'subscriber_id'         => $subscriberId,
+                    'item_id'           => $itemId,
+                    'transaction_id'    => $transactionId,
+                    'midtrans_order_id' => $orderId,
+                    'jumlah'            => 1,
+                    'total_harga'       => $grossAmount,
+                    'status'            => $transactionStatus,
+                    'payment_type'      => $paymentType,
+                    'midtrans_response' => $fullResponse,
+                    'transaction_time'  => $transactionTime,
+                    'payment_time'      => $paymentTime,
+                ]);
+                Log::info("Transaction successfully stored to DB: OrderID = $orderId");
+            } else {
+                $existing->update([
+                    'status'            => $transactionStatus,
+                    'payment_type'      => $paymentType,
+                    'payment_time'      => $paymentTime,
+                    'midtrans_response' => $fullResponse,
+                ]);
+                Log::info("Transaction updated: OrderID = $orderId, Status = $transactionStatus");
+            }
+
 
             return response()->json(['message' => 'Notification handled'], 200);
 
@@ -124,10 +148,10 @@ class PaymentController extends Controller
 
     public function getPendingTransactions(Request $request)
     {
-        $santriId = $request->user()->santri_id;
+        $subscriberId = $request->user()->subscriber_id;
 
         $pendingTransactions = Transaction::with('item')
-            ->where('santri_id', $santriId)
+            ->where('subscriber_id', $subscriberId)
             ->whereNotIn('status', ['paid', 'success'])
             ->orderBy('transaction_time', 'desc')
             ->get();
@@ -138,9 +162,9 @@ class PaymentController extends Controller
 
     public function getUserTransactions(Request $request)
     {
-        $santriId = $request->user()->santri_id;
+        $subscriberId = $request->user()->subscriber_id;
         $transactions = Transaction::with('item')
-            ->where('santri_id', $santriId)
+            ->where('subscriber_id', $subscriberId)
             ->orderBy('transaction_time', 'desc')
             ->get();
 
@@ -149,13 +173,13 @@ class PaymentController extends Controller
 
     public function getUnpaidItems(Request $request)
     {
-        $santriId = $request->user()->santri_id;
+        $subscriberId = $request->user()->subscriber_id;
 
         $unpaidItems = Item::where('aktif', 1)
-            ->whereNotIn('id', function ($query) use ($santriId) {
+            ->whereNotIn('id', function ($query) use ($subscriberId) {
                 $query->select('item_id')
                     ->from('transactions')
-                    ->where('santri_id', $santriId);
+                    ->where('subscriber_id', $subscriberId);
             })
             ->get();
 

@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
-            // Foreign key ke santris
-            $table->foreignId('santri_id')->constrained('santris')->onDelete('cascade');
+            // Foreign key ke subscriber
+            $table->foreignId('subscriber_id')->constrained('subscribers')->onDelete('cascade');
             // Foreign key ke items
             $table->foreignId('item_id')->constrained('items')->onDelete('cascade');
             $table->string('transaction_id')->unique();

@@ -42,8 +42,8 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
 
-    public function santri()
+    public function subscriber()
     {
-        return $this->belongsTo(Santri::class);
+        return $this->belongsTo(Subscriber::class);
     }
 }

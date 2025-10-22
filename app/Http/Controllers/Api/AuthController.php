@@ -24,7 +24,7 @@ class AuthController extends Controller
                     'name' => $data['name'],
                     'email'=> $data['email'],
                     'password'=> bcrypt($data['password']),
-                    'role'  => $user->role ?? 'santri', // default role kalau belum di-set
+                    'role'  => $user->role ?? 'subscriber', // default role kalau belum di-set
                 ]);
 
 

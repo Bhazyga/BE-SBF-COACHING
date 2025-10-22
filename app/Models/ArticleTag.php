@@ -5,17 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Material extends Model
+class ArticleTag extends Model
 {
     use HasFactory;
 
-
-    protected $fillable = [
-        'nama',
-        'deskripsi',
-        'kategori',
-        'gambar',
-    ];
-
-
+    protected $fillable = ['article_id', 'name'];
 }

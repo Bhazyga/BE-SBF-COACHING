@@ -7,8 +7,6 @@ use App\Models\User;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Resources\UserResource;
-use Illuminate\Http\Request;
-use Illuminate\http\Resources\Json\AnonymousResourceCollection;
 
 class UserController extends Controller
 {
@@ -67,9 +65,9 @@ class UserController extends Controller
 
     }
 
-    public function santriBelumAktif()
+    public function subscriberBelumAktif()
     {
-        $users = User::whereNull('santri_id')
+        $users = User::whereNull('subscriber_id')
             ->orderBy('created_at', 'desc')
             ->get();
 

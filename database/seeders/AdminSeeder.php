@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Models\Santri;
+use App\Models\Subscriber;
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -19,19 +19,19 @@ class AdminSeeder extends Seeder
 
         \App\Models\User::factory()->create([
             'name' => 'Admin',
-            'email' => 'admin@azziyadah.com',
+            'email' => 'admin@sinau.com',
             'password' => 'password',
             'role' => 'admin',
         ]);
 
-        $santri = Santri::create([
+        $subscriber = Subscriber::create([
             'nama_lengkap' => 'Bhazy Ghazalah Acyuta',
             'tempat_lahir' => 'Jakarta',
             'tanggal_lahir' => '1998-07-27',
             'jenis_kelamin' => 'Laki-laki',
-            'alamat_santri' => 'Jl. Kenangan No. 1',
-            'provinsi_santri' => 'Jawa Timur',
-            'kota_kabupaten_santri' => 'Surabaya',
+            'alamat_subscriber' => 'Jl. Kenangan No. 1',
+            'provinsi_subscriber' => 'Jawa Timur',
+            'kota_kabupaten_subscriber' => 'Surabaya',
             'nama_ayah' => 'Pak Bhazy',
             'telepon_ayah' => '081234567890',
             'nama_ibu' => 'Bu Tatum',
@@ -45,11 +45,11 @@ class AdminSeeder extends Seeder
         ]);
 
         User::create([
-            'name' => $santri->nama_lengkap,
-            'email' => 'azziyadah@pengguna.com',
+            'name' => $subscriber->nama_lengkap,
+            'email' => 'sinau@pengguna.com',
             'password' => Hash::make('password'),
-            'role' => 'santri',
-            'santri_id' => $santri->id,
+            'role' => 'subscriber',
+            'subscriber_id' => $subscriber->id,
         ]);
     }
 

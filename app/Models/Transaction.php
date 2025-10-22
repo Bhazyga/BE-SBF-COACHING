@@ -14,7 +14,7 @@ class Transaction extends Model
 
     // Kolom yang boleh diisi massal
     protected $fillable = [
-        'santri_id',
+        'subscriber_id',
         'item_id',
         'transaction_id',
         'midtrans_order_id',
@@ -34,10 +34,10 @@ class Transaction extends Model
         'payment_time' => 'datetime',
     ];
 
-    // Relasi ke Santri (banyak transaksi dimiliki oleh satu santri)
-    public function santri()
+    // Relasi ke Subscriber (banyak transaksi dimiliki oleh satu subs)
+    public function subscriber()
     {
-        return $this->belongsTo(Santri::class, 'santri_id');
+        return $this->belongsTo(Subscriber::class, 'subscriber_id');
     }
 
     // Relasi ke Item (banyak transaksi dimiliki oleh satu item)

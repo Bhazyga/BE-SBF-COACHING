@@ -19,7 +19,7 @@ class TransaksiController extends Controller
 
     public function allTransactions()
     {
-        $transactions = Transaction::with(['santri', 'item'])->get(); // pastikan relasi `item` juga ada kalau kamu butuh
+        $transactions = Transaction::with(['subscriber', 'item'])->get(); // pastikan relasi `item` juga ada kalau kamu butuh
         return response()->json($transactions);
     }
 
@@ -37,7 +37,7 @@ class TransaksiController extends Controller
      */
     public function show($id)
     {
-        $transaction = Transaction::with(['santri', 'item'])->findOrFail($id);
+        $transaction = Transaction::with(['subscriber', 'item'])->findOrFail($id);
         return response()->json($transaction);
     }
 

@@ -26,7 +26,7 @@ class RegisterRequest extends FormRequest
             'name' => 'required|string|max:55',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|min:6',
-            'role' => 'santri',
+            'role' => 'subsciber',
 
         ];
     }

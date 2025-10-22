@@ -5,15 +5,14 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UserController;
-use App\Http\Controllers\Api\SantriController;
-use App\Http\Controllers\Api\SantriActivationController;
+
 use App\Http\Controllers\Api\ItemController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\TransaksiController;
-use App\Http\Controllers\Api\MaterialController;
-use App\Http\Controllers\Api\TeamController;
-use App\Http\Controllers\Api\GradeController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\SubscriberActivationController;
+use App\Http\Controllers\Api\SubscriberController;
+use App\Http\Controllers\Api\ArticleController;
 
 /*
 |--------------------------------------------------------------------------
@@ -34,22 +33,32 @@ use App\Http\Controllers\Api\DashboardController;
 // ===============================
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
-Route::post('/index', [AuthController::class,'index']); // (??) optional login?
+Route::post('/index', [AuthController::class,'index']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', fn(Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::apiResource('/users', UserController::class);
-    Route::get('/belum-aktif', [UserController::class, 'santriBelumAktif']); // List santri belum aktif
+    Route::get('/belum-aktif', [UserController::class, 'subscriberBelumAktif']);
 });
 
 // ===============================
 // 🧕 SANTRI
 // ===============================
-Route::apiResource('/santris', SantriController::class);
-Route::get('/santris/{id}', [SantriController::class, 'biodata']);
-Route::get('/santris/{id}/unpaid-items', [SantriController::class, 'getUnpaidItems']); // Unpaid by Santri ID
-Route::put('/activate-santri/{id}', [SantriActivationController::class, 'activate']);
+// Route::apiResource('/santris', SantriController::class);
+// Route::get('/santris/{id}', [SantriController::class, 'biodata']);
+// Route::get('/santris/{id}/unpaid-items', [SantriController::class, 'getUnpaidItems']); // Unpaid by Santri ID
+// Route::put('/activate-santri/{id}', [SantriActivationController::class, 'activate']);
+
+
+// ===============================
+// 👥 SUBSCRIBERS
+// ===============================
+
+Route::apiResource('/subscribers', SubscriberController::class);
+Route::get('/subscribers/{id}', [SubscriberController::class, 'profile']);
+Route::put('/activate-subscriber/{id}', [SubscriberActivationController::class, 'activate']);
+
 
 // ===============================
 // 💸 PAYMENT (Midtrans)
@@ -71,23 +80,10 @@ Route::get('/transactions/{id}', [TransaksiController::class, 'show']); // detai
 // ===============================
 Route::get('/dashboard-stats', [DashboardController::class, 'index']);
 
-// ===============================
-// 📦 ITEMS, MATERIALS, TEAMS
-// ===============================
 Route::apiResource('/items', ItemController::class);
-Route::apiResource('/materials', MaterialController::class);
-Route::get('/materials/{id}', [MaterialController::class, 'show']);
 
-Route::apiResource('/teams', TeamController::class);
-Route::get('/teams/{id}', [TeamController::class, 'show']);
 
-// ===============================
-// 🏫 GRADES
-// ===============================
-Route::prefix('grades')->group(function () {
-    Route::get('/', [GradeController::class, 'index']);
-    Route::post('/', [GradeController::class, 'store']);
-    Route::get('{id}', [GradeController::class, 'show']);
-    Route::put('{id}', [GradeController::class, 'update']);
-    Route::delete('{id}', [GradeController::class, 'destroy']);
-});
+Route::apiResource('articles', ArticleController::class);
+Route::get('/articles/{id}', [ArticleController::class, 'show']);
+
+Route::get('/articles/slug/{slug}', [ArticleController::class, 'showBySlug']);
