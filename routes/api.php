@@ -40,6 +40,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::apiResource('/users', UserController::class);
     Route::get('/belum-aktif', [UserController::class, 'subscriberBelumAktif']);
+
+    Route::post('/send-otp', [AuthController::class, 'sendOtp']);
+    Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
 });
 
 // ===============================
@@ -50,19 +53,18 @@ Route::middleware('auth:sanctum')->group(function () {
 // Route::get('/santris/{id}/unpaid-items', [SantriController::class, 'getUnpaidItems']); // Unpaid by Santri ID
 // Route::put('/activate-santri/{id}', [SantriActivationController::class, 'activate']);
 
-
 // ===============================
-// 👥 SUBSCRIBERS
+// 👑 SUBSCRIBER MANAGEMENT (Only Admin)
 // ===============================
+Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::get('/subscribers', [SubscriberController::class, 'index']);
+    Route::get('/subscribers/{id}', [SubscriberController::class, 'show']);
+    Route::put('/subscribers/{id}', [SubscriberController::class, 'update']);
+    Route::delete('/subscribers/{id}', [SubscriberController::class, 'destroy']);
 
-Route::apiResource('/subscribers', SubscriberController::class);
-Route::get('/subscribers/{id}', [SubscriberController::class, 'profile']);
-Route::put('/activate-subscriber/{id}', [SubscriberActivationController::class, 'activate']);
+    Route::put('/activate-subscriber/{id}', [SubscriberActivationController::class, 'activate']);
+});
 
-
-// ===============================
-// 💸 PAYMENT (Midtrans)
-// ===============================
 Route::post('/transactions/token', [PaymentController::class, 'getSnapToken']);
 Route::post('/midtrans/notification', [PaymentController::class, 'handleNotification']); // Callback URL
 
@@ -75,15 +77,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
 Route::get('/transactions/{id}', [TransaksiController::class, 'show']); // detail transaksi
 
-// ===============================
-// 📊 DASHBOARD
-// ===============================
 Route::get('/dashboard-stats', [DashboardController::class, 'index']);
 
 Route::apiResource('/items', ItemController::class);
 
+Route::get('/articles', [ArticleController::class, 'index']);          // semua artikel
+Route::get('/articles/{id}', [ArticleController::class, 'show']);      // detail by ID
+Route::get('/articles/slug/{slug}', [ArticleController::class, 'showBySlug']); // detail by slug
+Route::get('/articles/author/{slug}', [ArticleController::class, 'filterByAuthor']); // filter by author
 
-Route::apiResource('articles', ArticleController::class);
-Route::get('/articles/{id}', [ArticleController::class, 'show']);
+Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::apiResource('articles', ArticleController::class)->except(['index', 'show', 'showBySlug', 'filterByAuthor']);
+});
 
-Route::get('/articles/slug/{slug}', [ArticleController::class, 'showBySlug']);

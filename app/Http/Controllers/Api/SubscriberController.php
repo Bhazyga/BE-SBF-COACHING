@@ -3,83 +3,49 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Subscriber;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 
 class SubscriberController extends Controller
 {
-    /**
-     * Tampilkan daftar subscriber.
-     * GET /api/subscribers?search=nama
-     */
-    public function index(Request $request)
+    public function index()
     {
-        $search = $request->query('search');
+        $subscribers = User::where('role', 'subscriber')
+            ->with('subscriber')
+            ->get();
 
-        $subscribers = Subscriber::when($search, function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
-            })
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
-
-        return response()->json($subscribers, Response::HTTP_OK);
+        return response()->json($subscribers);
     }
 
-    /**
-     * Tambahkan subscriber baru.
-     * POST /api/subscribers
-     */
-    public function store(Request $request)
+    public function show($id)
     {
-        $data = $request->validate([
-            'name'   => 'required|string|max:255',
-            'email'  => 'required|email|unique:subscribers,email',
-            'phone'  => 'nullable|string|max:20',
-            'status' => 'nullable|in:active,inactive',
+        $subscriber = User::with('subscriber')->findOrFail($id);
+        return response()->json($subscriber);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $subscriber = User::findOrFail($id);
+
+        $subscriber->update($request->only(['name', 'email']));
+
+        return response()->json([
+            'message' => 'Subscriber diperbarui',
+            'data' => $subscriber->load('subscriber')
         ]);
-
-        $subscriber = Subscriber::create($data);
-
-        return response()->json($subscriber, Response::HTTP_CREATED);
     }
 
-    /**
-     * Detail subscriber tertentu.
-     * GET /api/subscribers/{id}
-     */
-    public function show(Subscriber $subscriber)
+    public function destroy($id)
     {
-        return response()->json($subscriber, Response::HTTP_OK);
-    }
-
-    /**
-     * Update data subscriber.
-     * PUT /api/subscribers/{id}
-     */
-    public function update(Request $request, Subscriber $subscriber)
-    {
-        $data = $request->validate([
-            'name'   => 'sometimes|required|string|max:255',
-            'email'  => 'sometimes|required|email|unique:subscribers,email,' . $subscriber->id,
-            'phone'  => 'nullable|string|max:20',
-            'status' => 'nullable|in:active,inactive',
-        ]);
-
-        $subscriber->update($data);
-
-        return response()->json($subscriber, Response::HTTP_OK);
-    }
-
-    /**
-     * Hapus subscriber.
-     * DELETE /api/subscribers/{id}
-     */
-    public function destroy(Subscriber $subscriber)
-    {
+        $subscriber = User::findOrFail($id);
         $subscriber->delete();
 
-        return response()->json(null, Response::HTTP_NO_CONTENT);
+        return response()->json(['message' => 'Subscriber dihapus']);
+    }
+
+    public function profile($id)
+    {
+        $subscriber = User::with('subscriber')->findOrFail($id);
+        return response()->json($subscriber);
     }
 }

@@ -7,6 +7,7 @@ use App\Models\{Article, ArticleSection, ArticleTag, ArticleImage};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Str;
 
 
 class ArticleController extends Controller
@@ -193,6 +194,24 @@ class ArticleController extends Controller
     public function showBySlug($slug)
     {
         return Article::with('sections.images', 'tags')->where('slug', $slug)->firstOrFail();
+    }
+
+
+    public function filterByAuthor($slug)
+    {
+        // Ambil semua artikel, filter author dengan slug
+        $articles = Article::with('sections.images', 'tags')
+            ->get()
+            ->filter(function ($article) use ($slug) {
+                return Str::slug($article->author) === $slug;
+            })
+            ->values(); // reset keys
+
+        if ($articles->isEmpty()) {
+            return response()->json(['message' => 'Tidak ada artikel untuk author ini'], 404);
+        }
+
+        return response()->json($articles);
     }
 
 

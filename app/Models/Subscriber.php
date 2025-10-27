@@ -9,14 +9,18 @@ class Subscriber extends Model
 {
     use HasFactory;
 
-    // Nama tabel (opsional karena Laravel otomatis pakai plural)
     protected $table = 'subscribers';
 
-    // Kolom yang bisa diisi mass assignment
     protected $fillable = [
-        'name',
-        'email',
-        'phone',
-        'status',
+        'user_id',
+        'plan',
+        'start_date',
+        'end_date',
+        'transaction_id'
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }
