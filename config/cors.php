@@ -15,11 +15,20 @@ return [
     |
     */
 
-    'paths' => ['api/*', '*','cetak-hasil','sanctum/csrf-cookie'],
+    'paths' => ['api/*', '*','sanctum/csrf-cookie'],
 
     'allowed_methods' => ['*'],
 
+    // Local
     'allowed_origins' => ['*'],
+
+    // Dev
+    // 'allowed_origins' => [
+    //     'https://sbf-coaching.com',
+    //     'https://www.sbf-coaching.com',
+    // ],
+
+
 
     'allowed_origins_patterns' => [],
 

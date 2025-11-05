@@ -8,52 +8,43 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $stats = [
-            'total_keuangan' => DB::table('transactions')
-                ->where('status', 'success')
-                ->sum('total_harga'),
+        $filter = $request->query('filter', 'bulan'); // default per bulan
 
-            // Santri yang sudah diterima adalah yang sudah memiliki akun user
-            'total_subscriber_diterima' => DB::table('users')
-                ->whereNotNull('subscriber_id')
-                ->distinct('subscriber_id')
-                ->count(),
+        if ($filter === 'hari') {
+            $labelFormat = 'DATE(transaction_time)';
+        } elseif ($filter === 'tahun') {
+            $labelFormat = 'YEAR(transaction_time)';
+        } else {
+            $labelFormat = 'DATE_FORMAT(transaction_time, "%Y-%m")';
+        }
 
-            // Santri mendaftar = santri yang belum punya akun user
-            'total_pendaftar' => DB::table('subscribers')
-                ->whereNotIn('id', function ($query) {
-                    $query->select('subscriber_id')->from('users')->whereNotNull('subscriber_id');
-                })
-                ->count(),
+        $totalUsers = DB::table('users')->count();
 
-            'belum_bayar' => $this->hitungPersentaseBelumBayar()
-        ];
+        $paidUsers = DB::table('subscribers')
+            ->whereDate('end_date', '>=', now())
+            ->count();
+
+        $revenue = DB::table('transactions')
+            ->whereIn('status', ['success', 'settlement'])
+            ->sum('total_harga');
 
         $chart = DB::table('transactions')
-            ->selectRaw('MONTHNAME(transaction_time) as bulan')
-            ->selectRaw('COUNT(*) as total_transaksi')
-            ->selectRaw('SUM(CASE WHEN status = "success" THEN 1 ELSE 0 END) as diterima')
-            ->selectRaw('SUM(CASE WHEN status = "success" THEN total_harga ELSE 0 END) as pemasukan')
-            ->whereYear('transaction_time', now()->year)
-            ->groupBy('bulan')
-            ->orderByRaw('MONTH(transaction_time)')
+            ->selectRaw("$labelFormat as label")
+            ->selectRaw("COUNT(*) as total_transaksi")
+            ->selectRaw("SUM(CASE WHEN status IN ('success','settlement') THEN total_harga ELSE 0 END) as total_pemasukan")
+            ->groupBy('label')
+            ->orderBy('label')
             ->get();
 
         return response()->json([
-            'stats' => $stats,
+            'stats' => [
+                'totalUsers' => $totalUsers,
+                'paidUsers' => $paidUsers,
+                'revenue' => $revenue,
+            ],
             'chart' => $chart,
         ]);
-    }
-
-    private function hitungPersentaseBelumBayar()
-    {
-        $total = DB::table('transactions')->count();
-        $belum = DB::table('transactions')
-            ->where('status', '!=', 'success')
-            ->count();
-
-        return $total > 0 ? round(($belum / $total) * 100, 2) : 0;
     }
 }

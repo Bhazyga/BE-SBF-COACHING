@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\TransaksiController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\SubscriberActivationController;
 use App\Http\Controllers\Api\SubscriberController;
+use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\ArticleController;
 
 /*
@@ -46,14 +47,6 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // ===============================
-// 🧕 SANTRI
-// ===============================
-// Route::apiResource('/santris', SantriController::class);
-// Route::get('/santris/{id}', [SantriController::class, 'biodata']);
-// Route::get('/santris/{id}/unpaid-items', [SantriController::class, 'getUnpaidItems']); // Unpaid by Santri ID
-// Route::put('/activate-santri/{id}', [SantriActivationController::class, 'activate']);
-
-// ===============================
 // 👑 SUBSCRIBER MANAGEMENT (Only Admin)
 // ===============================
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
@@ -61,32 +54,79 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('/subscribers/{id}', [SubscriberController::class, 'show']);
     Route::put('/subscribers/{id}', [SubscriberController::class, 'update']);
     Route::delete('/subscribers/{id}', [SubscriberController::class, 'destroy']);
-
     Route::put('/activate-subscriber/{id}', [SubscriberActivationController::class, 'activate']);
 });
 
-Route::post('/transactions/token', [PaymentController::class, 'getSnapToken']);
+Route::middleware('auth:sanctum')->post('/transactions/token', [PaymentController::class, 'getSnapToken']);
+
 Route::post('/midtrans/notification', [PaymentController::class, 'handleNotification']); // Callback URL
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/my-transactions', [PaymentController::class, 'getUserTransactions']);
     Route::get('/pending-transactions', [PaymentController::class, 'getPendingTransactions']);
     Route::get('/unpaid-items', [PaymentController::class, 'getUnpaidItems']);
+    Route::get('/transactions', [TransaksiController::class, 'index']);
     Route::get('/all-transactions', [TransaksiController::class, 'allTransactions']);
+    Route::get('/transactions/{id}', [TransaksiController::class, 'show']); // detail transaksi
 });
 
-Route::get('/transactions/{id}', [TransaksiController::class, 'show']); // detail transaksi
 
-Route::get('/dashboard-stats', [DashboardController::class, 'index']);
+Route::get('/dashboard', [DashboardController::class, 'index']);
 
 Route::apiResource('/items', ItemController::class);
 
-Route::get('/articles', [ArticleController::class, 'index']);          // semua artikel
-Route::get('/articles/{id}', [ArticleController::class, 'show']);      // detail by ID
-Route::get('/articles/slug/{slug}', [ArticleController::class, 'showBySlug']); // detail by slug
-Route::get('/articles/author/{slug}', [ArticleController::class, 'filterByAuthor']); // filter by author
+Route::get('/articles', [ArticleController::class, 'index']);
+Route::get('/articles/homepage', [ArticleController::class, 'ArticlesHomeAndHighlight']);
 
-Route::middleware(['auth:sanctum', 'admin'])->group(function () {
-    Route::apiResource('articles', ArticleController::class)->except(['index', 'show', 'showBySlug', 'filterByAuthor']);
+// ==================== FREE ARTICLES ====================
+
+Route::get('/articles/free', [ArticleController::class, 'freeArticles']);
+Route::get('/articles/free/author/{slug}', [ArticleController::class, 'filterFreeByAuthor'])
+    ->where('slug', '[A-Za-z0-9-_]+');
+Route::get('/articles/free/category/{slug}', [ArticleController::class, 'filterFreeByCategory'])
+    ->where('slug', '[A-Za-z0-9-_]+');
+
+Route::middleware(['auth:sanctum', 'subscriber'])->group(function () {
+
 });
 
+Route::get('/articles/premium', [ArticleController::class, 'premiumArticles']);
+
+Route::get('/articles/author/{slug}', [ArticleController::class, 'filterByAuthor']);
+
+
+Route::get('/articles/category/{slug}', [ArticleController::class, 'filterByCategory'])
+    ->where('slug', '[A-Za-z0-9-_]+');
+
+
+Route::get('/articles/{id}', [ArticleController::class, 'show'])
+->where('id', '[0-9]+');
+
+
+
+
+Route::get('/articlespremiumpreview/{slug}', [ArticleController::class, 'showPremiumPreviewBySlug'])
+    ->where('slug', '[A-Za-z0-9-_]+');
+
+Route::middleware('auth:sanctum')->get('/articlespremium/{slug}', [ArticleController::class, 'showPremiumBySlug'])
+    ->where('slug', '[A-Za-z0-9-_]+');
+
+
+
+Route::get('/articles/{slug}', [ArticleController::class, 'showBySlug'])
+    ->where('slug', '[A-Za-z0-9-_]+');
+
+
+
+
+
+
+Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::apiResource('articles', ArticleController::class)
+        ->except(['show']);
+});
+
+
+
+
+Route::get('/user/subscriptions', [SubscriptionController::class, 'index'])->middleware('auth:sanctum');

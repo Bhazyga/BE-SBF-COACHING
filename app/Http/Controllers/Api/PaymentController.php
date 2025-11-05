@@ -4,12 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Item;
+use App\Models\Subscriber;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Midtrans\Config;
 use Midtrans\Snap;
-use Midtrans\Notification;
 use App\Services\Midtrans\SafeNotification;
 
 
@@ -27,20 +27,27 @@ class PaymentController extends Controller
     public function getSnapToken(Request $request)
     {
         $request->validate([
-            'user_name'   => 'required|string',
-            'user_email'  => 'required|email',
-            'amount'      => 'required|numeric|min:1000',
-            'item_name'   => 'required|string',
-            'item_id'     => 'required|numeric',
-            'subscriber_id'   => 'required|exists:subscriber,id',  // validasi subscriber_id
+            'user_name'  => 'required|string',
+            'user_email' => 'required|email',
+            'amount'     => 'required|numeric|min:1000',
+            'item_name'  => 'required|string',
+            'item_id'    => 'required|numeric',
+            // hapus 'subscriber_id' dari validator karena ambil dari user login
         ]);
 
-        // $subscriberId = $request->user_id ?? null;
-        $subscriberId = $request->subscriber_id;  // ambil dari subscriber_id, bukan user_id
-        $itemId = $request->item_id;
+        // $subscriberId = $request->user()->subscriber->id ?? null;
 
+        // if (!$subscriberId) {
+        //     return response()->json([
+        //         'message' => 'User tidak memiliki subscriber aktif'
+        //     ], 400);
+        // }
 
-        $orderId = 'ORDER-' . $subscriberId . '-' . $itemId . '-' . uniqid();
+    // Gunakan user ID (bukan subscriber ID) di awal
+    $userId = $request->user()->id;
+    $itemId = $request->item_id;
+
+    $orderId = 'ORDER-USER-' . $userId . '-ITEM-' . $itemId . '-' . uniqid();
 
         $payload = [
             'transaction_details' => [
@@ -60,10 +67,10 @@ class PaymentController extends Controller
                 ]
             ],
             'callbacks' => [
-                'finish' => 'https://your-react-app-url.com/payment-finish',
+                // 'finish' => 'https://279f4c2849ab.ngrok-free.app/payment-finish',
+                'finish' => 'https://www.sbf-coaching.com/payment-finish',
             ]
         ];
-
 
         try {
             $snapToken = Snap::getSnapToken($payload);
@@ -73,6 +80,8 @@ class PaymentController extends Controller
                 'order_id'   => $orderId,
             ]);
         } catch (\Exception $e) {
+            Log::info('Midtrans Server Key: ' . Config::$serverKey);
+            Log::info('Payload: ', $payload);
             return response()->json([
                 'message' => 'Gagal membuat Snap Token',
                 'error'   => $e->getMessage(),
@@ -81,17 +90,8 @@ class PaymentController extends Controller
     }
 
 
-
-    public function handleNotification(Request $request)
+    public function handleNotification()
     {
-        Log::info('Incoming Midtrans Notification Payload:', $request->all());
-
-        // Setup Midtrans config lagi (jaga-jaga kalau belum di-boot)
-        Config::$serverKey = config('midtrans.server_key');
-        Config::$isProduction = config('midtrans.is_production');
-        Config::$isSanitized = true;
-        Config::$is3ds = true;
-
         try {
             $notif = new SafeNotification();
             $orderId = $notif->order_id ?? null;
@@ -102,31 +102,28 @@ class PaymentController extends Controller
             $transactionTime = $notif->transaction_time ?? now();
             $paymentTime = $notif->settlement_time ?? null;
             $statusCode = $notif->status_code ?? null;
-            $fullResponse = json_encode($notif);
-
-            // Extract subscriber_id dan item_id dari order_id jika pakai format custom (contoh: INV-123-456)
+            $fullResponse = json_encode($notif->getStatusResponse());
             $orderParts = explode('-', $orderId);
-            $subscriberId = $orderParts[1] ?? null;
-            $itemId = $orderParts[2] ?? null;
-
-            // Cek apakah transaksi ini sudah ada (hindari duplikasi)
+            $userId = $orderParts[2] ?? null;
+            $itemId = $orderParts[4] ?? null;
             $existing = Transaction::where('midtrans_order_id', $orderId)->first();
 
             if (!$existing) {
                 Transaction::create([
-                    'subscriber_id'         => $subscriberId,
-                    'item_id'           => $itemId,
-                    'transaction_id'    => $transactionId,
-                    'midtrans_order_id' => $orderId,
-                    'jumlah'            => 1,
-                    'total_harga'       => $grossAmount,
-                    'status'            => $transactionStatus,
-                    'payment_type'      => $paymentType,
-                    'midtrans_response' => $fullResponse,
-                    'transaction_time'  => $transactionTime,
-                    'payment_time'      => $paymentTime,
+                    'subscriber_id'    => null,
+                    'item_id'          => $itemId,
+                    'transaction_id'   => $transactionId,
+                    'midtrans_order_id'=> $orderId,
+                    'jumlah'           => 1,
+                    'total_harga'      => $grossAmount,
+                    'status'           => $transactionStatus,
+                    'payment_type'     => $paymentType,
+                    'midtrans_response'=> $fullResponse,
+                    'transaction_time' => $transactionTime,
+                    'payment_time'     => $paymentTime,
                 ]);
-                Log::info("Transaction successfully stored to DB: OrderID = $orderId");
+
+                Log::info("Transaction stored: $orderId");
             } else {
                 $existing->update([
                     'status'            => $transactionStatus,
@@ -134,9 +131,65 @@ class PaymentController extends Controller
                     'payment_time'      => $paymentTime,
                     'midtrans_response' => $fullResponse,
                 ]);
-                Log::info("Transaction updated: OrderID = $orderId, Status = $transactionStatus");
+                Log::info("Transaction updated: $orderId => $transactionStatus");
             }
 
+            if ($transactionStatus === 'settlement') {
+                switch ((int) $itemId) {
+                    case 1:
+                        $monthsToAdd = 1;
+                        $planName = '1_month';
+                        break;
+                    case 2:
+                        $monthsToAdd = 6;
+                        $planName = '6_months';
+                        break;
+                    case 3:
+                        $monthsToAdd = 12;
+                        $planName = '12_months';
+                        break;
+                    default:
+                        $monthsToAdd = 1;
+                        $planName = '1_month';
+                        break;
+                }
+
+                $subscriber = Subscriber::firstOrCreate(
+                    ['user_id' => $userId],
+                    [
+                        'start_date' => now(),
+                        'end_date'   => now()->addMonths($monthsToAdd),
+                        'plan'       => $planName,
+                    ]
+                );
+
+                if (!$subscriber->wasRecentlyCreated) {
+                    $baseDate = $subscriber->end_date > now()
+                        ? \Carbon\Carbon::parse($subscriber->end_date)
+                        : now();
+
+                    $subscriber->update([
+                        'start_date' => now(),
+                        'end_date'   => $baseDate->addMonths($monthsToAdd),
+                        'plan'       => $planName,
+                    ]);
+                }
+
+                Transaction::where('midtrans_order_id', $orderId)
+                    ->update(['subscriber_id' => $subscriber->id]);
+
+                $subscriber->update([
+                    'transaction_id' => $transactionId,
+                ]);
+
+
+
+                Log::info("✅ Subscriber {$subscriber->id} diperpanjang {$monthsToAdd} bulan untuk user {$userId}");
+            }
+
+            if (in_array($transactionStatus, ['deny', 'cancel', 'expire'])) {
+                Log::warning("❌ Payment gagal untuk order {$orderId}, status: {$transactionStatus}");
+            }
 
             return response()->json(['message' => 'Notification handled'], 200);
 
@@ -145,6 +198,7 @@ class PaymentController extends Controller
             return response()->json(['message' => 'Notification error'], 500);
         }
     }
+
 
     public function getPendingTransactions(Request $request)
     {
@@ -185,7 +239,4 @@ class PaymentController extends Controller
 
         return response()->json($unpaidItems);
     }
-
-
-
 }
