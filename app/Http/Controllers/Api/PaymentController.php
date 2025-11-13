@@ -95,12 +95,10 @@ class PaymentController extends Controller
     public function handleNotification()
     {
 
-        try {
-            // 🛑 Bypass test notification dari Midtrans Dashboard
-            if (request('order_id') && str_contains(request('order_id'), 'payment_notif_test')) {
-                Log::info('📦 Received test notification from Midtrans Dashboard.', request()->all());
-                return response()->json(['message' => 'Test notification received'], 200);
-            }
+        if (request('order_id') && str_contains(request('order_id'), 'payment_notif_test')) {
+            Log::info('📦 Received test notification from Midtrans Dashboard.', request()->all());
+            return response()->json(['message' => 'Test notification received'], 200);
+        }
 
         try {
             $notif = new SafeNotification();
