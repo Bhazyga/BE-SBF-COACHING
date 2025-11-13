@@ -44,6 +44,8 @@ class PaymentController extends Controller
         // }
 
     // Gunakan user ID (bukan subscriber ID) di awal
+    $item = Item::findOrFail($request->item_id);
+
     $userId = $request->user()->id;
     $itemId = $request->item_id;
 
@@ -52,7 +54,7 @@ class PaymentController extends Controller
         $payload = [
             'transaction_details' => [
                 'order_id'     => $orderId,
-                'gross_amount' => $request->amount,
+                'gross_amount' => $item->harga,
             ],
             'customer_details' => [
                 'first_name' => $request->user_name,
@@ -61,14 +63,14 @@ class PaymentController extends Controller
             'item_details' => [
                 [
                     'id'       => $itemId,
-                    'price'    => $request->amount,
+                    'price'    => $item->harga,
                     'quantity' => 1,
                     'name'     => $request->item_name,
                 ]
             ],
             'callbacks' => [
                 // 'finish' => 'https://279f4c2849ab.ngrok-free.app/payment-finish',
-                'finish' => 'https://www.sbf-coaching.com/payment-finish',
+                'finish' => 'https://www.sbf-coaching.com/user/payment-finish',
             ]
         ];
 
@@ -92,6 +94,14 @@ class PaymentController extends Controller
 
     public function handleNotification()
     {
+
+        try {
+            // 🛑 Bypass test notification dari Midtrans Dashboard
+            if (request('order_id') && str_contains(request('order_id'), 'payment_notif_test')) {
+                Log::info('📦 Received test notification from Midtrans Dashboard.', request()->all());
+                return response()->json(['message' => 'Test notification received'], 200);
+            }
+
         try {
             $notif = new SafeNotification();
             $orderId = $notif->order_id ?? null;
