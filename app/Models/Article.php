@@ -10,6 +10,8 @@ class Article extends Model
 {
     use HasFactory;
 
+    protected $appends = ['excerpt'];
+
     protected $fillable = [
         'title', 'slug', 'author', 'date', 'category', 'banner', 'is_published', 'is_premium'
     ];
@@ -29,4 +31,18 @@ class Article extends Model
     {
         return $this->hasMany(ArticleTag::class);
     }
+
+
+
+
+    public function getExcerptAttribute()
+    {
+        if (!$this->sections || $this->sections->isEmpty()) return null;
+
+        $text = strip_tags($this->sections[0]->content);
+        $words = explode(' ', $text);
+
+        return implode(' ', array_slice($words, 0, 20)) . '...';
+    }
+
 }

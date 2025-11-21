@@ -78,7 +78,7 @@ Route::apiResource('/items', ItemController::class);
 Route::get('/articles', [ArticleController::class, 'index']);
 Route::get('/articles/homepage', [ArticleController::class, 'ArticlesHomeAndHighlight']);
 
-// ==================== FREE ARTICLES ====================
+    // ==================== FREE ARTICLES ====================
 
 Route::get('/articles/free', [ArticleController::class, 'freeArticles']);
 Route::get('/articles/free/author/{slug}', [ArticleController::class, 'filterFreeByAuthor'])
@@ -86,39 +86,40 @@ Route::get('/articles/free/author/{slug}', [ArticleController::class, 'filterFre
 Route::get('/articles/free/category/{slug}', [ArticleController::class, 'filterFreeByCategory'])
     ->where('slug', '[A-Za-z0-9-_]+');
 
+    // ==================== Ends FREE ARTICLES ====================
+
+
 Route::middleware(['auth:sanctum', 'subscriber'])->group(function () {
 
 });
 
+    // ==================== Start Area Teknis Premium Only -> artikel & video Start  ====================
+
+// ---------- VIDEO ----------
+Route::prefix('videos')->group(function () {
+    Route::get('/', [ArticleController::class, 'videoArticles']);
+    Route::get('/author/{slug}', [ArticleController::class, 'filterVideoByAuthor']);
+    Route::get('/category/{slug}', [ArticleController::class, 'filterVideoByCategory']);
+    Route::get('/{slug}', [ArticleController::class, 'showVideoBySlug']);
+});
+
+
 Route::get('/articles/premium', [ArticleController::class, 'premiumArticles']);
-
 Route::get('/articles/author/{slug}', [ArticleController::class, 'filterByAuthor']);
-
-
-Route::get('/articles/category/{slug}', [ArticleController::class, 'filterByCategory'])
+Route::get('/articles/category/{slug}', [ArticleController::class, 'filterAreaTeknisByCategory'])
     ->where('slug', '[A-Za-z0-9-_]+');
 
 
 Route::get('/articles/{id}', [ArticleController::class, 'show'])
 ->where('id', '[0-9]+');
-
-
-
-
 Route::get('/articlespremiumpreview/{slug}', [ArticleController::class, 'showPremiumPreviewBySlug'])
     ->where('slug', '[A-Za-z0-9-_]+');
-
 Route::middleware('auth:sanctum')->get('/articlespremium/{slug}', [ArticleController::class, 'showPremiumBySlug'])
     ->where('slug', '[A-Za-z0-9-_]+');
-
-
-
 Route::get('/articles/{slug}', [ArticleController::class, 'showBySlug'])
     ->where('slug', '[A-Za-z0-9-_]+');
 
-
-
-
+        // ==================== Ends Area Teknis -> artikel & video Start  ====================
 
 
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
@@ -126,7 +127,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         ->except(['show']);
 });
 
-
-
-
 Route::get('/user/subscriptions', [SubscriptionController::class, 'index'])->middleware('auth:sanctum');
+
+
+

@@ -32,24 +32,28 @@ class PaymentController extends Controller
             'amount'     => 'required|numeric|min:1000',
             'item_name'  => 'required|string',
             'item_id'    => 'required|numeric',
-            // hapus 'subscriber_id' dari validator karena ambil dari user login
         ]);
 
-        // $subscriberId = $request->user()->subscriber->id ?? null;
+        $item = Item::findOrFail($request->item_id);
+        $user = $request->user();
+        $userId = $user->id;
+        $itemId = $request->item_id;
 
-        // if (!$subscriberId) {
-        //     return response()->json([
-        //         'message' => 'User tidak memiliki subscriber aktif'
-        //     ], 400);
-        // }
+        $subscriber = $user->subscriber ?? null;
+        if (!$subscriber) {
+            $today = now()->format('Y-m-d'); // tanggal hari ini dalam format YYYY-MM-DD
 
-    // Gunakan user ID (bukan subscriber ID) di awal
-    $item = Item::findOrFail($request->item_id);
+            $subscriber = Subscriber::create([
+                'user_id'    => $userId,
+                'plan'       => '-',          // belum aktif
+                'start_date' => $today,
+                'end_date'   => $today,
+                'status'     => 'inactive',   // atau 'pending'
+            ]);
+        }
 
-    $userId = $request->user()->id;
-    $itemId = $request->item_id;
-
-    $orderId = 'ORDER-USER-' . $userId . '-ITEM-' . $itemId . '-' . uniqid();
+        // 2️⃣ Generate order id
+        $orderId = 'ORDER-USER-' . $userId . '-ITEM-' . $itemId . '-' . uniqid();
 
         $payload = [
             'transaction_details' => [
@@ -69,27 +73,43 @@ class PaymentController extends Controller
                 ]
             ],
             'callbacks' => [
-                // 'finish' => 'https://279f4c2849ab.ngrok-free.app/payment-finish',
-                'finish' => 'https://www.sbf-coaching.com/user/payment-finish',
+                'finish' => 'https://e8ffbaf9a07e.ngrok-free.app/payment-finish',
+
+                // 'finish' => 'https://www.sbf-coaching.com/user/payment-finish',
             ]
         ];
 
         try {
             $snapToken = Snap::getSnapToken($payload);
 
+            // 3️⃣ Simpan transaksi baru
+            Transaction::create([
+                'subscriber_id'     => $subscriber->id,
+                'item_id'           => $itemId,
+                'transaction_id'    => 'TEMP-' . uniqid(),
+                'midtrans_order_id' => $orderId,
+                'jumlah'            => 1,
+                'total_harga'       => $item->harga,
+                'status'            => 'pending',
+                'payment_type'      => null,
+                'midtrans_response' => null,
+                'transaction_time'  => now(),
+                'payment_time'      => null,
+            ]);
+
             return response()->json([
                 'snap_token' => $snapToken,
                 'order_id'   => $orderId,
             ]);
         } catch (\Exception $e) {
-            Log::info('Midtrans Server Key: ' . Config::$serverKey);
-            Log::info('Payload: ', $payload);
+            Log::error('Midtrans Error: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Gagal membuat Snap Token',
                 'error'   => $e->getMessage(),
             ], 500);
         }
     }
+
 
 
     public function handleNotification()

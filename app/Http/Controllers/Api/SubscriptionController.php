@@ -17,7 +17,7 @@ class SubscriptionController extends Controller
 
         $subs = Subscriber::where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
-            ->get(['plan', 'start_date', 'end_date', 'transaction_id']);
+            ->get(['start_date', 'end_date', 'transaction_id']);
 
         return response()->json(['subscriptions' => $subs]);
     }

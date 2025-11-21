@@ -20,82 +20,136 @@ class ArticleController extends Controller
             ->get();
     }
 
-    public function freeArticles()
-    {
-        return Article::with('sections.images', 'tags')
-            ->where('is_premium', 0)
-            ->latest()
-            ->get();
-    }
 
-    public function filterFreeByAuthor($slug)
-    {
-        $articles = Article::with('sections.images', 'tags')
-            ->where('is_premium', 0)
-            ->get()
-            ->filter(function ($article) use ($slug) {
-                // Normalisasi nama author → slug lowercase tanpa accent
-                $normalizedAuthor = Str::slug(iconv('UTF-8', 'ASCII//TRANSLIT', $article->author ?? ''));
-                $normalizedSlug = Str::slug(iconv('UTF-8', 'ASCII//TRANSLIT', $slug));
 
-                return $normalizedAuthor === $normalizedSlug;
-            })
-            ->values();
+        // =======  Home Page Controller ===========
 
-        if ($articles->isEmpty()) {
-            return response()->json(['message' => 'Tidak ada artikel gratis untuk author ini'], 404);
+
+        public function ArticlesHomeAndHighlight()
+        {
+            return Article::with('sections.images', 'tags')
+                ->where('is_premium', 0)
+                ->latest()
+                ->limit(5)
+                ->get();
         }
 
-        return response()->json([
-            'data' => $articles,
-            'total' => $articles->count(),
-        ]);
+        // ======= Ends Home Page Controller ===========
+
+
+
+    // ======= Free Kick Controller ===========
+
+    public function freeArticles(Request $request)
+    {
+        $perPage = $request->get('per_page', 6);
+
+        $articles = Article::with(['sections.images', 'tags'])
+            ->where('is_premium', 0)
+            ->latest()
+            ->paginate($perPage);
+
+        return response()->json(
+            \App\Helpers\ApiHelper::formatArticleResponse($articles)
+        );
     }
 
-
-    public function filterFreeByCategory($slug)
+    public function filterFreeByAuthor(Request $request, $slug)
     {
-        $category = str_replace('-', ' ', ucwords($slug));
+        $normalized = Str::slug($slug);
+        $perPage = $request->get('per_page', 6);
 
         $articles = Article::with('sections.images', 'tags')
             ->where('is_premium', 0)
-            ->where('category', 'LIKE', "%{$category}%")
-            ->orderBy('created_at', 'desc')
-            ->paginate(6);
+            ->whereRaw('LOWER(REPLACE(author, " ", "-")) = ?', [$normalized])
+            ->paginate($perPage);
 
-        return response()->json($articles);
+        return response()->json(
+            \App\Helpers\ApiHelper::formatArticleResponse($articles)
+        );
     }
 
-
-    public function ArticlesHomeAndHighlight()
+    public function filterFreeByCategory(Request $request, $slug)
     {
-        return Article::with('sections.images', 'tags')
+        $perPage = $request->get('per_page', 6);
+
+        $articles = Article::with('sections.images', 'tags')
             ->where('is_premium', 0)
+            ->where('category', 'LIKE', "%$slug%")
             ->latest()
-            ->limit(5)
-            ->get();
+            ->paginate($perPage);
+
+        return response()->json(
+            \App\Helpers\ApiHelper::formatArticleResponse($articles)
+        );
     }
 
-    public function premiumArticles(Request $request)
+    // ======= Ends Free Kick Controller ===========
+
+    // ==================== Videos Controller =====================
+
+    public function videoArticles(Request $request)
     {
-        $query = Article::with('sections.images', 'tags')
-            ->where('is_premium', true)
-            ->latest();
+        $perPage = $request->get('per_page', 6);
 
-        // ✅ Filter berdasarkan author slug (kalau ada)
-        if ($request->has('author')) {
-            $authorSlug = Str::slug($request->author);
-            $query->whereRaw('LOWER(REPLACE(author, " ", "-")) = ?', [$authorSlug]);
-        }
+        $articles = Article::with(['sections.images', 'tags'])
+            ->where('is_premium', 1)
+            ->where('category', 'LIKE', 'video%')
+            ->latest()
+            ->paginate($perPage);
 
-        // ✅ Pagination
-        $perPage = $request->get('per_page', 6); // default 6 per halaman
-        $articles = $query->paginate($perPage);
-
-        return response()->json($articles);
+        return response()->json(
+            \App\Helpers\ApiHelper::formatArticleResponse($articles)
+        );
     }
 
+    public function filterVideoByAuthor(Request $request, $slug)
+    {
+        $normalized = Str::slug($slug);
+        $perPage = $request->get('per_page', 6);
 
+        $articles = Article::with(['sections.images', 'tags'])
+            ->where('is_premium', 1)
+            ->where('category', 'LIKE', 'video%')
+            ->whereRaw('LOWER(REPLACE(author, " ", "-")) = ?', [$normalized])
+            ->latest()
+            ->paginate($perPage);
+
+        return response()->json(
+            \App\Helpers\ApiHelper::formatArticleResponse($articles)
+        );
+    }
+
+    public function filterVideoByCategory(Request $request, $slug)
+    {
+        $perPage = $request->get('per_page', 6);
+
+        $articles = Article::with(['sections.images', 'tags'])
+            ->where('is_premium', 1)
+            ->where('category', 'LIKE', 'video%')
+            ->where('category', 'LIKE', "%$slug%")
+            ->latest()
+            ->paginate($perPage);
+
+        return response()->json(
+            \App\Helpers\ApiHelper::formatArticleResponse($articles)
+        );
+    }
+
+    public function showVideoBySlug($slug)
+    {
+        $article = Article::with(['sections.images', 'tags'])
+            ->where('is_premium', 1)
+            ->where('category', 'LIKE', 'video%')
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        return response()->json($article);
+    }
+
+    // ======= Ends Videos Controller ===========
+
+    // =======  CRUD Article Admin Controller ===========
 
     public function store(Request $request)
     {
@@ -157,7 +211,7 @@ class ArticleController extends Controller
             ->firstOrFail();
     }
 
-    public function show($id) // fallback by ID
+    public function show($id)
     {
         $article = Article::with('sections.images', 'tags')->find($id);
 
@@ -246,44 +300,48 @@ class ArticleController extends Controller
         return $base64String;
     }
 
+    // ======= Ends CRUD Article Admin Controller ===========
+
+    // Area Teknis -> Artikel Premium
+
+
+    public function premiumArticles(Request $request)
+    {
+        $query = Article::with('sections.images', 'tags')
+            ->where('is_premium', true)
+            ->where('category', 'NOT LIKE', '%video%')
+            ->latest();
+
+        if ($request->has('author')) {
+            $authorSlug = Str::slug($request->author);
+            $query->whereRaw('LOWER(REPLACE(author, " ", "-")) = ?', [$authorSlug]);
+        }
+
+        $perPage = $request->get('per_page', 6);
+        $articles = $query->paginate($perPage);
+
+        return response()->json($articles);
+    }
 
     public function filterByAuthor($slug)
     {
         $articles = Article::with('sections.images', 'tags')
-            ->get()
-            ->filter(function ($article) use ($slug) {
-                // bikin slug dari author tapi normalize dulu accent
-                $normalizedAuthor = Str::slug(iconv('UTF-8', 'ASCII//TRANSLIT', $article->author ?? ''));
-
-                $normalizedSlug = Str::slug(iconv('UTF-8', 'ASCII//TRANSLIT', $slug));
-
-                return $normalizedAuthor === $normalizedSlug;
-            })
-            ->values();
-
-        if ($articles->isEmpty()) {
-            return response()->json(['message' => 'Tidak ada artikel untuk author ini'], 404);
-        }
-
-        return response()->json([
-            'data' => $articles,
-            'total' => $articles->count(),
-        ]);
-    }
-
-    public function filterByCategory($slug)
-    {
-        $category = str_replace('-', ' ', ucwords($slug));
-
-        $articles = Article::where('category', 'LIKE', "%{$category}%")
+            ->whereRaw('LOWER(REPLACE(author, " ", "-")) = ?', [$slug])
             ->orderBy('created_at', 'desc')
             ->paginate(6);
 
         return response()->json($articles);
     }
 
+    public function filterAreaTeknisByCategory($slug)
+    {
+        $articles = Article::with('sections.images', 'tags')
+            ->where('category', $slug)
+            ->orderBy('created_at', 'desc')
+            ->paginate(6);
 
-
+        return response()->json($articles);
+    }
 
     public function showPremiumPreviewBySlug($slug)
     {
