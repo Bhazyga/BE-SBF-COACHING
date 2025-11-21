@@ -309,7 +309,6 @@ class ArticleController extends Controller
     {
         $query = Article::with('sections.images', 'tags')
             ->where('is_premium', true)
-            ->where('category', 'NOT LIKE', '%video%')
             ->latest();
 
         if ($request->has('author')) {
