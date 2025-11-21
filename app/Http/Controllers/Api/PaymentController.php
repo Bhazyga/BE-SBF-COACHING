@@ -73,9 +73,9 @@ class PaymentController extends Controller
                 ]
             ],
             'callbacks' => [
-                'finish' => 'https://e8ffbaf9a07e.ngrok-free.app/payment-finish',
+                // 'finish' => 'https://e8ffbaf9a07e.ngrok-free.app/payment-finish',
 
-                // 'finish' => 'https://www.sbf-coaching.com/user/payment-finish',
+                'finish' => 'https://www.sbf-coaching.com/user/payment-finish',
             ]
         ];
 
