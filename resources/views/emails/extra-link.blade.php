@@ -49,7 +49,7 @@
 
     <div class="card">
         <h3>📘 Deskripsi Event</h3>
-        <p>{{ $event->description }}</p>
+        <p style="white-space: pre-wrap;">{{ $event->description }}</p>
 
         <p><strong>Judul:</strong> {{ $event->title }}</p>
         <p><strong>Tanggal:</strong> {{ $event->date }}</p>
