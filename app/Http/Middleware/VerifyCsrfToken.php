@@ -16,7 +16,6 @@ class VerifyCsrfToken extends Middleware
         "https://api.sbf-coaching.com/login",
         "https://api.sbf-coaching.com/api/users",
         "https://api.sbf-coaching.com/api/materials",
-        "https://760a77dda0bc.ngrok-free.app/api/midtrans/notification",
-
+        "https://a2225a04d2ba.ngrok-free.app/api/midtrans/notification",
     ];
 }

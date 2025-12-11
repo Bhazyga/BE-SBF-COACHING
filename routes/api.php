@@ -14,6 +14,10 @@ use App\Http\Controllers\Api\SubscriberActivationController;
 use App\Http\Controllers\Api\SubscriberController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\ArticleController;
+use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\EventRegistrationController;
+use App\Http\Controllers\Api\EventPaymentController;
+use App\Http\Controllers\Api\MidtransNotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -59,7 +63,8 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 
 Route::middleware('auth:sanctum')->post('/transactions/token', [PaymentController::class, 'getSnapToken']);
 
-Route::post('/midtrans/notification', [PaymentController::class, 'handleNotification']); // Callback URL
+
+
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/my-transactions', [PaymentController::class, 'getUserTransactions']);
@@ -109,7 +114,6 @@ Route::get('/articles/author/{slug}', [ArticleController::class, 'filterByAuthor
 Route::get('/articles/category/{slug}', [ArticleController::class, 'filterAreaTeknisByCategory'])
     ->where('slug', '[A-Za-z0-9-_]+');
 
-
 Route::get('/articles/{id}', [ArticleController::class, 'show'])
 ->where('id', '[0-9]+');
 Route::get('/articlespremiumpreview/{slug}', [ArticleController::class, 'showPremiumPreviewBySlug'])
@@ -127,7 +131,37 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         ->except(['show']);
 });
 
+        // ==================== Start Events Start  ====================
+
+
+Route::prefix('admin')->group(function () {
+    Route::get('/events', [EventController::class, 'index']);
+    Route::post('/events', [EventController::class, 'store']);
+    Route::get('/events/{slug}', [EventController::class, 'show']);
+    Route::put('/events/{slug}', [EventController::class, 'update']);
+    Route::delete('/events/{slug}', [EventController::class, 'destroy']);
+});
+
+// Public events endpoint (tanpa login)
+Route::get('/events', [EventController::class, 'publicIndex']);
+Route::get('/events/{slug}', [EventController::class, 'detailBySlug']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/event/register', [EventRegistrationController::class, 'register']);
+    Route::get('/event/registration-status/{event_id}', [EventRegistrationController::class, 'registrationStatus']);
+    Route::post('/event/payment/get-snap-token', [EventPaymentController::class, 'getSnapToken']);
+    Route::get('/event/payment/user-payments', [EventPaymentController::class, 'getUserPayments']);
+    Route::get('/event/payment/pending', [EventPaymentController::class, 'getPendingPayments']);
+});
+// Route::post('/event/payment/notification', [EventPaymentController::class, 'handleNotification']); //callback
+
+        // ==================== Ends Events Ends   ====================
+
+
+
 Route::get('/user/subscriptions', [SubscriptionController::class, 'index'])->middleware('auth:sanctum');
 
 
 
+Route::post('/midtrans/notification', [MidtransNotificationController::class, 'handle']); //callback
+// Route::post('/midtrans/notification', [PaymentController::class, 'handleNotification']); // Callback URL

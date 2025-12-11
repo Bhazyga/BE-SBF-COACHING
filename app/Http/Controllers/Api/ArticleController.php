@@ -241,14 +241,41 @@ class ArticleController extends Controller
         }
 
         if (!empty($data['banner']) && preg_match('/^data:image/', $data['banner'])) {
+            // hapus banner lama
+            if ($article->banner) {
+                $this->deleteImageFromUrl($article->banner);
+            }
+
             $data['banner'] = $this->saveBase64Image($data['banner'], 'articles/banner');
         }
 
         $article->update($data);
 
-        // Reset tags & sections
+
+
+
+        // Reset sections
+        // 1️⃣ Ambil dulu section dan image lama
+        $oldSections = $article->sections()->with('images')->get();
+
+        // 2️⃣ Hapus file gambar lama
+        foreach ($oldSections as $sec) {
+            foreach ($sec->images as $img) {
+                $this->deleteImageFromUrl($img->path);
+            }
+        }
+
+        // 3️⃣ Hapus record images
+        \App\Models\ArticleImage::whereIn(
+            'section_id',
+            $oldSections->pluck('id')
+        )->delete();
+
+        // 4️⃣ Hapus record section
+        ArticleSection::where('article_id', $article->id)->delete();
+
+        // Reset tags
         $article->tags()->delete();
-        $article->sections()->delete();
 
         // Save new tags
         if (!empty($request->tags)) {
@@ -280,9 +307,47 @@ class ArticleController extends Controller
 
     public function destroy(Article $article)
     {
+        // 1. Hapus file banner
+        if ($article->banner) {
+            $this->deleteImageFromUrl($article->banner);
+        }
+
+        // 2. Ambil semua section milik article
+        $sections = \App\Models\ArticleSection::where('article_id', $article->id)->get();
+
+        foreach ($sections as $section) {
+            // 3. Ambil semua images milik section ini
+            $images = \App\Models\ArticleImage::where('section_id', $section->id)->get();
+
+            foreach ($images as $img) {
+                $this->deleteImageFromUrl($img->path);
+            }
+
+            // 4. Hapus image record di DB
+            \App\Models\ArticleImage::where('section_id', $section->id)->delete();
+        }
+
+        // 5. Hapus semua section record
+        \App\Models\ArticleSection::where('article_id', $article->id)->delete();
+
+        // 6. Hapus article
         $article->delete();
+
         return response()->json(['message' => 'Article deleted']);
     }
+
+    private function deleteImageFromUrl($url)
+    {
+        if (!$url) return;
+
+        // Hilangkan domain — ambil path setelah /storage/
+        $relativePath = str_replace(asset('storage') . '/', '', $url);
+
+        // Hapus file dari storage/app/public
+        Storage::disk('public')->delete($relativePath);
+    }
+
+
 
     private function saveBase64Image($base64String, $path)
     {

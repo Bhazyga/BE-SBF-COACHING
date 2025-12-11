@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Event extends Model
 {
@@ -20,12 +20,27 @@ class Event extends Model
         'platform',
         'thumbnail',
         'description',
+        'is_paid',
+        'price',
+        'whatsapp_group',
         'extra_link',
         'tags',
     ];
 
     protected $casts = [
-        'tags' => 'array',
         'date' => 'date',
+        'tags' => 'array',
+        'is_paid' => 'boolean',
     ];
+
+    // Relasi ke registrations
+    public function registrations()
+    {
+        return $this->hasMany(EventRegistration::class);
+    }
+
+    public function isFree()
+    {
+        return !$this->is_paid || $this->price === null || $this->price == 0;
+    }
 }

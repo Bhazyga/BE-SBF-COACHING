@@ -32,7 +32,7 @@ class User extends Authenticatable implements MustVerifyEmail {
     public function generateEmailOtp()
     {
         $this->email_otp = rand(100000, 999999);
-        $this->email_otp_expires_at = now()->addMinutes(1);
+        $this->email_otp_expires_at = now()->addMinutes(60);
         $this->save();
     }
 

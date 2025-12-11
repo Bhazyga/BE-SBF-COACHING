@@ -73,9 +73,11 @@ class PaymentController extends Controller
                 ]
             ],
             'callbacks' => [
-                // 'finish' => 'https://e8ffbaf9a07e.ngrok-free.app/payment-finish',
-
+                // prod
                 'finish' => 'https://www.sbf-coaching.com/user/payment-finish',
+
+                // local
+                // 'finish' => 'https://a2225a04d2ba.ngrok-free.app/payment-finish',
             ]
         ];
 
@@ -112,7 +114,7 @@ class PaymentController extends Controller
 
 
 
-    public function handleNotification()
+    public function handleNotification($notif)
     {
 
         if (request('order_id') && str_contains(request('order_id'), 'payment_notif_test')) {
@@ -121,7 +123,7 @@ class PaymentController extends Controller
         }
 
         try {
-            $notif = new SafeNotification();
+            // $notif = new SafeNotification();
             $orderId = $notif->order_id ?? null;
             $transactionId = $notif->transaction_id ?? null;
             $transactionStatus = $notif->transaction_status ?? null;
