@@ -40,10 +40,12 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/index', [AuthController::class,'index']);
 
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', fn(Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::apiResource('/users', UserController::class);
     Route::get('/belum-aktif', [UserController::class, 'subscriberBelumAktif']);
 
     Route::post('/send-otp', [AuthController::class, 'sendOtp']);
@@ -54,12 +56,21 @@ Route::middleware('auth:sanctum')->group(function () {
 // 👑 SUBSCRIBER MANAGEMENT (Only Admin)
 // ===============================
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::apiResource('/users', UserController::class);
+    Route::put('/users/{user}/password', [UserController::class, 'adminUpdatePassword']);
     Route::get('/subscribers', [SubscriberController::class, 'index']);
     Route::get('/subscribers/{id}', [SubscriberController::class, 'show']);
     Route::put('/subscribers/{id}', [SubscriberController::class, 'update']);
     Route::delete('/subscribers/{id}', [SubscriberController::class, 'destroy']);
     Route::put('/activate-subscriber/{id}', [SubscriberActivationController::class, 'activate']);
 });
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/me', [UserController::class, 'me']);
+    Route::put('/me', [UserController::class, 'updateMe']);
+    Route::put('/me/password', [UserController::class, 'updateMyPassword']);
+});
+
 
 Route::middleware('auth:sanctum')->post('/transactions/token', [PaymentController::class, 'getSnapToken']);
 

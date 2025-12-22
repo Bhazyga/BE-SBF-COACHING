@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Notifications\CustomResetPassword;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -14,6 +15,7 @@ class User extends Authenticatable implements MustVerifyEmail {
     protected $fillable = [
         'name',
         'email',
+        'phone',
         'password',
         'role'
     ];
@@ -36,6 +38,15 @@ class User extends Authenticatable implements MustVerifyEmail {
         $this->save();
     }
 
+    public function sendPasswordResetNotification($token)
+    {
+        $url = config('app.frontend_url')
+            . '/reset-password'
+            . '?token=' . $token
+            . '&email=' . urlencode($this->email);
+
+        $this->notify(new CustomResetPassword($token, $url));
+    }
 
     // 1 User memiliki 1 Subscriber
     public function subscriber()

@@ -10,6 +10,9 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+
 
 class AuthController extends Controller
 {
@@ -20,7 +23,7 @@ class AuthController extends Controller
         $user = User::create([
             'name' => $data['name'],
             'email'=> $data['email'],
-            'password'=> bcrypt($data['password']),
+            'password' => Hash::make($data['password']),
             'role'  => 'subscriber'
         ]);
 
@@ -98,5 +101,45 @@ class AuthController extends Controller
             'message' => 'Email berhasil diverifikasi!',
             'user' => $user->makeHidden(['password', 'remember_token', 'email_otp', 'email_otp_expires_at'])
         ]);
+    }
+
+
+    // ================= FORGOT PASSWORD =================
+
+    public function forgotPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        $status = Password::sendResetLink(
+            $request->only('email')
+        );
+
+        return $status === Password::RESET_LINK_SENT
+            ? response()->json(['message' => 'Link reset password dikirim ke email'])
+            : response()->json(['message' => 'Gagal mengirim email'], 500);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'token' => 'required',
+            'email' => 'required|email',
+            'password' => 'required|min:8|confirmed',
+        ]);
+
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function ($user, $password) {
+                $user->update([
+                    'password' => Hash::make($password),
+                ]);
+            }
+        );
+
+        return $status === Password::PASSWORD_RESET
+            ? response()->json(['message' => 'Password berhasil direset'])
+            : response()->json(['message' => 'Token tidak valid / expired'], 422);
     }
 }
